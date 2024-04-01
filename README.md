@@ -1,7 +1,7 @@
 # **Accountant Bot**
 
 
-We have implemented the Basic Implementation of Retrieveal Augmentation over existing income tax laws, to answer the user queries on respective field.
+We have done the Basic Implementation of Retrieveal Augmentation over existing income tax laws, to answer the user queries on respective field.
 
 
 ## **Background**
