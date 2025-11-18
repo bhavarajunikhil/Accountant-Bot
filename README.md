@@ -33,3 +33,5 @@ Mechanism of RAG can be divided into three steps
 **3. Synthesis**
 
     Adding the relevant context to query and generating answer in required format from an LLM
+
+**4. Evaluation**
