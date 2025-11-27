@@ -2,16 +2,6 @@ from duckduckgo_search import DDGS
 from typing import List
 
 def get_recent_news(query: str, max_results: int = 3) -> str:
-    """
-    Searches for recent news related to the query using DuckDuckGo.
-    
-    Args:
-        query: The user's search query.
-        max_results: Maximum number of news items to return.
-
-    Returns:
-        A formatted string containing the news titles and snippets.
-    """
     try:
         results = []
         with DDGS() as ddgs:
