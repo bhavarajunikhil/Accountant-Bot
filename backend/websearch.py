@@ -1,27 +1,49 @@
+import requests
+from bs4 import BeautifulSoup
 from duckduckgo_search import DDGS
-from typing import List
+from langchain.schema import Document
 
-def get_recent_news(query: str, max_results: int = 3) -> str:
+def scrape_url(url):
+    """Helper to extract text from a URL."""
     try:
-        results = []
-        with DDGS() as ddgs:
-            # We add "latest news" to the query to encourage news results
-            # or use the specific news() method if strict news is required.
-            # Here we use text search with a focus on recent info.
-            search_results = list(ddgs.text(f"{query} latest news", max_results=max_results))
-            
-            if not search_results:
-                return "No recent news found."
-
-            for item in search_results:
-                title = item.get('title', 'No Title')
-                body = item.get('body', 'No Content')
-                source = item.get('href', 'Unknown Source')
-                results.append(f"Source: {source}\nTitle: {title}\nSnippet: {body}")
-        
-        formatted_news = "\n---\n".join(results)
-        return f"RECENT NEWS FOUND:\n{formatted_news}"
-
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code != 200:
+            return None
+        soup = BeautifulSoup(response.content, 'html.parser')
+        # Extract paragraphs to avoid navbars/footers
+        text = ' '.join([p.get_text() for p in soup.find_all('p')])
+        return text[:4000]  # Limit content length
     except Exception as e:
-        print(f"Error fetching news: {e}")
-        return "Could not fetch recent news at this time."
+        print(f"Error scraping {url}: {e}")
+        return None
+
+def get_latest_news(query: str = "Income Tax Act 2025 India", max_results: int = 10):
+    """Searches DDG, scrapes content, and returns LangChain Documents."""
+    print(f"Searching for: {query}")
+    documents = []
+    
+    with DDGS() as ddgs:
+        # Get news results
+        results = list(ddgs.news(query, max_results=max_results))
+        
+        for result in results:
+            url = result['url']
+            title = result['title']
+            date = result['date']
+            
+            content = scrape_url(url)
+            if content:
+                doc = Document(
+                    page_content=content,
+                    metadata={
+                        "source": "news",
+                        "title": title,
+                        "url": url,
+                        "date": date
+                    }
+                )
+                documents.append(doc)
+                print(f"Scraped: {title}")
+                
+    return documents

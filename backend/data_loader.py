@@ -1,25 +1,24 @@
-from pypdf import PdfReader
-import io
-from typing import List
+from langchain_community.document_loaders import PyPDFLoader
+from backend.text_splitter import get_text_splitter # Assuming you have a splitter here
+from backend.vector_store import add_documents_to_db
 
-def get_pdf_text(pdf_docs: List[io.BytesIO]) -> str:
-    """
-    Extracts text from a list of uploaded PDF file-like objects.
+def process_tax_pdf(file_path: str):
+    """Reads PDF, splits it, and uploads to 'legal_docs' namespace."""
+    print(f"Processing PDF: {file_path}")
     
-    Args:
-        pdf_docs: A list of file-like objects (e.g., from FastAPI UploadFile.file).
+    loader = PyPDFLoader(file_path)
+    documents = loader.load()
+    
+    # Split text (using your existing text_splitter logic or standard Recursive)
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    split_docs = text_splitter.split_documents(documents)
+    
+    # Add metadata
+    for doc in split_docs:
+        doc.metadata['source'] = "Income Tax Act 2025"
+        doc.metadata['type'] = "legal"
 
-    Returns:
-        A single string containing all extracted text.
-    """
-    text = ""
-    for pdf in pdf_docs:
-        try:
-            pdf_reader = PdfReader(pdf)
-            for page in pdf_reader.pages:
-                text += page.extract_text() or "" # Add 'or ""' for safety
-        except Exception as e:
-            print(f"Warning: Could not read a PDF file: {e}")
-            # Continue processing other files
-            pass
-    return text
+    # Upload to Vector DB under 'legal_docs' namespace
+    add_documents_to_db(split_docs, namespace="legal_docs")
+    return {"status": "success", "chunks": len(split_docs)}

@@ -1,58 +1,30 @@
-import os
 from langchain_openai import OpenAIEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain.schema.document import Document
-from typing import List
+from langchain_community.vectorstores import Pinecone
+from pinecone import Pinecone as PineconeClient
+from backend.config import settings
 
-# Define the path for the local vector store
-VECTOR_STORE_PATH = "faiss_index"
+# Initialize Pinecone Client
+pc = PineconeClient(api_key=settings.PINECONE_API_KEY)
+embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY)
 
-def get_embeddings_model():
-    """Initializes and returns the OpenAI embeddings model."""
-    # This automatically loads the OPENAI_API_KEY from the environment
-    return OpenAIEmbeddings()
+def get_vectorstore(namespace: str):
+    """Returns a vector store handler for a specific namespace."""
+    return Pinecone.from_existing_index(
+        index_name=settings.INDEX_NAME,
+        embedding=embeddings,
+        namespace=namespace
+    )
 
-def create_and_save_vector_store(text_chunks: List[str]):
-    """
-    Creates a FAISS vector store from text chunks,
-    generates embeddings, and saves it locally.
+def add_documents_to_db(documents, namespace: str):
+    """Uploads documents to the specific namespace."""
+    if not documents:
+        print("No documents to upload.")
+        return
     
-    Args:
-        text_chunks: A list of text chunks.
-    """
-    try:
-        embeddings = get_embeddings_model()
-        vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
-        vector_store.save_local(VECTOR_STORE_PATH)
-    except Exception as e:
-        print(f"Error creating vector store: {e}")
-        raise
-
-def get_similar_docs(query: str, k: int = 4) -> List[Document]:
-    """
-    Loads the local vector store and retrieves the k most
-    similar documents for a given query.
-    
-    Args:
-        query: The user's question.
-        k: The number of similar documents to retrieve.
-
-    Returns:
-        A list of matching Document objects.
-    """
-    if not os.path.exists(VECTOR_STORE_PATH):
-        raise FileNotFoundError(f"Vector store not found at {VECTOR_STORE_PATH}. Please process documents first.")
-    
-    try:
-        embeddings = get_embeddings_model()
-        db = FAISS.load_local(
-            VECTOR_STORE_PATH, 
-            embeddings, 
-            allow_dangerous_deserialization=True # Required for FAISS
-        )
-        
-        docs = db.similarity_search(query, k=k)
-        return docs
-    except Exception as e:
-        print(f"Error retrieving similar docs: {e}")
-        raise
+    Pinecone.from_documents(
+        documents,
+        embeddings,
+        index_name=settings.INDEX_NAME,
+        namespace=namespace
+    )
+    print(f"Successfully uploaded {len(documents)} documents to '{namespace}'")
